@@ -1,0 +1,29 @@
+{
+	"schemaVersion": 1,
+	"id": "minebot",
+	"version": "${version}",
+	"name": "MineBOT",
+	"description": "Client-side mining task runner. Configures a job, then look, walk, jump, break, place, use, and chest-click — one ordinary action per tick.",
+	"authors": [
+		"CodyKoInABox"
+	],
+	"license": "GPL-3.0",
+	"environment": "client",
+	"entrypoints": {
+		"client": [
+			"com.minebot.client.MineBotClient"
+		]
+	},
+	"mixins": [
+		{
+			"config": "minebot.client.mixins.json",
+			"environment": "client"
+		}
+	],
+	"depends": {
+		"fabricloader": ">=0.19.5",
+		"minecraft": "~26.3",
+		"java": ">=25",
+		"fabric-api": "*"
+	}
+}
