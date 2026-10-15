@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="light dark" />
+    <meta
+      name="theme-color"
+      content="#f3efe6"
+      media="(prefers-color-scheme: light)"
+    />
+    <meta
+      name="theme-color"
+      content="#14161c"
+      media="(prefers-color-scheme: dark)"
+    />
+    <title>MineBOT — client-side mining jobs for Minecraft Java</title>
+    <meta
+      name="description"
+      content="MineBOT is a client-side Fabric mod for Minecraft Java 26.3. Configure a mining job, then look, walk, jump, break, place, use, and click chests — one ordinary action per tick."
+    />
+    <link rel="canonical" href="https://codykoinabox.github.io/MineBOT/" />
+    <link rel="icon" href="favicon.svg" type="image/svg+xml" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@600;800&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <a class="skip-link" href="#content">Skip to content</a>
+
+    <div class="gauge" aria-hidden="true">
+      <div class="gauge-track"><span class="gauge-torch"></span></div>
+      <ol class="gauge-marks">
+        <li>surface</li>
+        <li>Y 48</li>
+        <li>Y 16</li>
+        <li>Y 0</li>
+        <li>bedrock</li>
+      </ol>
+    </div>
+
+    <header class="mast">
+      <div class="mast-inner">
+        <p class="brand">MineBOT</p>
+        <nav aria-label="Page">
+          <ul role="list">
+            <li><a href="#what">What it is</a></li>
+            <li><a href="#configure">Configure</a></li>
+            <li><a href="#example">Example quarry</a></li>
+            <li><a href="#install">Install</a></li>
+            <li><a href="#develop">Develop</a></li>
+            <li>
+              <a href="https://github.com/CodyKoInABox/MineBOT">Source on GitHub</a>
+            </li>
+          </ul>
+        </nav>
+      </div>
+      <div class="seam" aria-hidden="true"><span class="seam-fill"></span></div>
+    </header>
+
+    <div class="shell">
+      <main id="content" tabindex="-1">
+        <div class="hero">
+          <p class="kicker">
+            Client-side Fabric mod · Minecraft Java 26.3 · GPL-3.0
+          </p>
+          <div class="hero-body">
+            <h1 id="title">
+              <span class="line">Mine</span><span class="line line-bot">Bot</span>
+            </h1>
+            <p class="lede">
+              Set a mining job, press Start, and walk away. The mod stays on
+              your client and plays with ordinary player actions, one per tick.
+            </p>
+            <p class="honesty">
+              This page describes the mod as written in source. It has
+              <strong>not been verified</strong> in a running Minecraft client.
+            </p>
+            <p class="hero-links">
+              <a href="https://github.com/CodyKoInABox/MineBOT">Source on GitHub</a>
+              <a href="#install">Install</a>
+            </p>
+          </div>
+        </div>
+
+        <section class="stratum" id="what">
+          <h2><span class="index" aria-hidden="true">01</span> What it is</h2>
+          <div class="split">
+            <div class="prose">
+              <p>
+                MineBOT is a client-side Fabric mod for Minecraft Java. It is
+                not installed on the server. You configure a job; the client
+                then looks, walks, jumps, breaks, places, uses, and clicks
+                chests. Breaks take real time. It does not send custom packets.
+                That is why it works on Paper.
+              </p>
+              <p>
+                The server does not need the mod. 25×25 down to bedrock is only
+                a built-in preset named Example quarry, not the only mode.
+              </p>
+              <p>
+                <code>com.minebot.core</code> is the task runner and does not
+                import Minecraft. <code>com.minebot.client</code> is the Fabric
+                tick loop.
+              </p>
+            </div>
+            <div>
+              <ul class="ticks" role="list">
+                <li><span class="tick-n" aria-hidden="true">01</span> Look</li>
+                <li><span class="tick-n" aria-hidden="true">02</span> Walk</li>
+                <li><span class="tick-n" aria-hidden="true">03</span> Jump</li>
+                <li><span class="tick-n" aria-hidden="true">04</span> Break</li>
+                <li><span class="tick-n" aria-hidden="true">05</span> Place</li>
+                <li><span class="tick-n" aria-hidden="true">06</span> Use</li>
+                <li>
+                  <span class="tick-n" aria-hidden="true">07</span> Chest click
+                </li>
+              </ul>
+              <p class="ticks-note">One action per tick. Real break times.</p>
+            </div>
+          </div>
+        </section>
+
+        <section class="stratum" id="configure">
+          <h2><span class="index" aria-hidden="true">02</span> What you configure</h2>
+          <p class="prose">
+            Any width and length. 25×25 is not a limit.
+          </p>
+          <dl class="ledger">
+            <div>
+              <dt>Area</dt>
+              <dd>
+                Corners or coordinates. Stand on the first corner and press
+                Corner A, then the second corner, or type the coordinates.
+              </dd>
+            </div>
+            <div>
+              <dt>Depth</dt>
+              <dd>
+                Bedrock, a Y level, or a layer count. Bedrock is never broken.
+              </dd>
+            </div>
+            <div>
+              <dt>Stair</dt>
+              <dd>
+                Off, or a clockwise border spiral: one block down per step,
+                outer ring first, the tread column left solid to bedrock, two
+                blocks of headroom.
+              </dd>
+            </div>
+            <div>
+              <dt>Blocks</dt>
+              <dd>
+                Mine everything, or list block ids. The obstruction toggle digs
+                other blocks when they are in the way.
+              </dd>
+            </div>
+            <div>
+              <dt>Chests</dt>
+              <dd>
+                The deposit list is what goes into chests. The keep list stays
+                on you. Search a radius, or mark a chest. If every chest is
+                full, the job pauses and the status line says
+                <code>Paused: chests are full</code>.
+              </dd>
+            </div>
+            <div>
+              <dt>Survival</dt>
+              <dd>
+                Eat, at a hunger threshold. Sleep when a bed is nearby at night.
+                Torch spacing. Auto-craft a replacement pick from materials on
+                hand. The tier is the best those materials can make: wood,
+                stone, iron, diamond, or netherite.
+              </dd>
+            </div>
+            <div>
+              <dt>Presets</dt>
+              <dd>
+                Named presets save and load. A job that was running resumes
+                after you die or restart the client. Example quarry is one
+                preset, not a separate mode.
+              </dd>
+            </div>
+            <div>
+              <dt>Controls</dt>
+              <dd>
+                <kbd>K</kbd> opens MineBOT. Press Start, or run
+                <code>minebot start</code>. <code>minebot stop</code> stops the
+                job.
+              </dd>
+            </div>
+          </dl>
+        </section>
+
+        <section class="stratum" id="example">
+          <h2><span class="index" aria-hidden="true">03</span> Example quarry</h2>
+          <p class="prose">
+            A built-in preset, not the only way to dig, and not a measured
+            runtime. The footprint starts at the corner you are standing on.
+          </p>
+          <table class="sheet">
+            <caption>Built-in preset “Example quarry”</caption>
+            <tbody>
+              <tr>
+                <th scope="row">Footprint</th>
+                <td>25×25</td>
+              </tr>
+              <tr>
+                <th scope="row">Origin</th>
+                <td>The corner you are standing on</td>
+              </tr>
+              <tr>
+                <th scope="row">Depth</th>
+                <td>Bedrock. Bedrock is never broken.</td>
+              </tr>
+              <tr>
+                <th scope="row">Stair</th>
+                <td>On. Clockwise border spiral.</td>
+              </tr>
+              <tr>
+                <th scope="row">Mine</th>
+                <td>Everything</td>
+              </tr>
+              <tr>
+                <th scope="row">Deposit</th>
+                <td>Cobble, deepslate, ores</td>
+              </tr>
+              <tr>
+                <th scope="row">Keep</th>
+                <td>Torches, food, wood, iron</td>
+              </tr>
+            </tbody>
+          </table>
+          <h3>Before you start</h3>
+          <p class="prose">
+            Place chests near the dig and fill them with torches, food, wood,
+            planks, sticks, iron, and a pickaxe. Add any extra item ids you want
+            kept to the keep list. Then set the job and press Start, or run
+            <code>minebot start</code>.
+          </p>
+        </section>
+
+        <section class="stratum" id="install">
+          <h2><span class="index" aria-hidden="true">04</span> Install</h2>
+          <p class="prose">
+            The jar goes in the client <code>mods</code> folder. The server does
+            not need the mod.
+          </p>
+          <ul class="reqs">
+            <li>Minecraft 26.3</li>
+            <li>Fabric Loader 0.19.5</li>
+            <li>Fabric API 0.163.0+26.3</li>
+            <li>Java 25</li>
+          </ul>
+          <p class="prose">
+            <code>./gradlew build</code> writes the jar to
+            <code>build/libs</code>. Put that jar in the client mods folder next
+            to Fabric API.
+          </p>
+        </section>
+
+        <section class="stratum" id="develop">
+          <h2><span class="index" aria-hidden="true">05</span> Develop</h2>
+          <p class="prose">
+            From a checkout of the mod. The task runner in
+            <code>com.minebot.core</code> does not import Minecraft.
+          </p>
+          <pre><code>./gradlew test
+./gradlew build</code></pre>
+          <p class="prose">
+            License
+            <a href="https://github.com/CodyKoInABox/MineBOT/blob/main/LICENSE"
+              >GPL-3.0</a
+            >. The client quarry runner landed in
+            <a href="https://github.com/CodyKoInABox/MineBOT/pull/1"
+              >pull request #1</a
+            >.
+          </p>
+        </section>
+      </main>
+
+      <footer class="colophon">
+          <p>
+            MineBOT is a client-side Fabric mod by
+            <a href="https://github.com/CodyKoInABox">CodyKoInABox</a>.
+            <a href="https://github.com/CodyKoInABox/MineBOT">Source on GitHub</a>.
+          </p>
+        <p>
+          Not verified in a running game. Behavior on this page is what the
+          source describes.
+        </p>
+      </footer>
+    </div>
+  </body>
+</html>
