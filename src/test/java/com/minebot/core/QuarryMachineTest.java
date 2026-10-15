@@ -66,6 +66,7 @@ class QuarryMachineTest {
 		assertEquals(0, first.x);
 		assertEquals(10, first.y);
 		assertEquals(0, first.z);
+		assertEquals("minecraft:diamond_pickaxe", first.itemId);
 
 		int ticks = 1;
 		while (ticks < 40) {
@@ -74,9 +75,104 @@ class QuarryMachineTest {
 				break;
 			}
 			assertFalse(action.breakStart);
+			assertEquals(first.x, action.x);
+			assertEquals(first.y, action.y);
+			assertEquals(first.z, action.z);
+			assertEquals(first.itemId, action.itemId);
 			ticks++;
 		}
 		assertEquals(expected, ticks);
+		assertFalse(machine.progress().breaking);
+	}
+
+	@Test
+	void usesShovelOnDirtAndPickOnStoneUntilTheBreakFinishes() {
+		TaskConfig dirtJob = oneBlock(10);
+		dirtJob.survival.autoCraftPicks = false;
+		QuarryMachine dirt = new QuarryMachine(dirtJob, new JobProgress());
+		dirt.start(-64);
+		TickInput dirtIn = standing();
+		dirtIn.world = blockFill(10, "minecraft:dirt", 0.5f);
+		dirtIn.inventory.put("minecraft:diamond_pickaxe", 1);
+		dirtIn.inventory.put("minecraft:stone_shovel", 1);
+		dirtIn.toolId = "minecraft:diamond_pickaxe";
+
+		int shovelTicks = BreakTimes.ticks(0.5f, 4f, true);
+		BotAction started = dirt.tick(dirtIn);
+		assertEquals(ActionType.BREAK, started.type);
+		assertEquals("minecraft:stone_shovel", started.itemId);
+		assertEquals(0, started.x);
+		int seen = 1;
+		while (seen < 20) {
+			BotAction action = dirt.tick(dirtIn);
+			if (action.type != ActionType.BREAK) {
+				break;
+			}
+			assertEquals(0, action.x);
+			assertEquals(10, action.y);
+			assertEquals(0, action.z);
+			assertEquals("minecraft:stone_shovel", action.itemId);
+			seen++;
+		}
+		assertEquals(shovelTicks, seen);
+
+		TaskConfig stoneJob = oneBlock(10);
+		stoneJob.survival.autoCraftPicks = false;
+		QuarryMachine stone = new QuarryMachine(stoneJob, new JobProgress());
+		stone.start(-64);
+		TickInput stoneIn = standing();
+		stoneIn.world = WorldQuery.stoneFill(10);
+		stoneIn.inventory.put("minecraft:diamond_shovel", 1);
+		stoneIn.inventory.put("minecraft:iron_pickaxe", 1);
+		BotAction pick = stone.tick(stoneIn);
+		assertEquals("minecraft:iron_pickaxe", pick.itemId);
+		assertEquals(0, pick.x);
+		assertEquals(10, pick.y);
+	}
+
+	private static TaskConfig oneBlock(int y) {
+		TaskConfig config = new TaskConfig();
+		config.area.setFirst(new BlockPos(0, y, 0));
+		config.area.setSecond(new BlockPos(0, y, 0));
+		config.depth = DepthSpec.layers(1);
+		config.stair = false;
+		config.mine = MineFilter.everything();
+		config.survival.eat = false;
+		config.survival.sleep = false;
+		config.survival.autoCraftPicks = false;
+		config.survival.placeTorches = false;
+		config.storage.depositIds.clear();
+		return config;
+	}
+
+	private static TickInput standing() {
+		TickInput input = new TickInput();
+		input.playerX = 2;
+		input.playerY = 11;
+		input.playerZ = 0;
+		input.hunger = 20;
+		input.dayTime = 1000;
+		input.inventory = new LinkedHashMap<>();
+		return input;
+	}
+
+	private static WorldQuery blockFill(int fillY, String id, float hardness) {
+		return new WorldQuery() {
+			@Override
+			public String blockId(int x, int y, int z) {
+				return y <= fillY ? id : "minecraft:air";
+			}
+
+			@Override
+			public float hardness(int x, int y, int z) {
+				return y <= fillY ? hardness : 0f;
+			}
+
+			@Override
+			public boolean solid(int x, int y, int z) {
+				return y <= fillY;
+			}
+		};
 	}
 
 	@Test

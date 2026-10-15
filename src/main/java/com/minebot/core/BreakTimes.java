@@ -24,17 +24,7 @@ public final class BreakTimes {
 	}
 
 	public static float speedFor(String toolId) {
-		if (toolId == null) {
-			return 1f;
-		}
-		return switch (Ids.normalize(toolId)) {
-			case "minecraft:wooden_pickaxe" -> 2f;
-			case "minecraft:stone_pickaxe" -> 4f;
-			case "minecraft:iron_pickaxe" -> 6f;
-			case "minecraft:diamond_pickaxe" -> 8f;
-			case "minecraft:netherite_pickaxe" -> 9f;
-			case "minecraft:golden_pickaxe" -> 12f;
-			default -> 1f;
-		};
+		ToolTier tier = ToolItems.tierOf(toolId);
+		return tier == null ? 1f : tier.speed;
 	}
 }

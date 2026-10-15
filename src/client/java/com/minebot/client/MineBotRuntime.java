@@ -3,7 +3,6 @@ package com.minebot.client;
 import com.minebot.core.BlockPos;
 import com.minebot.core.BotAction;
 import com.minebot.core.ChestPolicy;
-import com.minebot.core.Ids;
 import com.minebot.core.JobProgress;
 import com.minebot.core.QuarryMachine;
 import com.minebot.core.TaskConfig;
@@ -49,6 +48,7 @@ public final class MineBotRuntime {
 	public void tick(Minecraft minecraft) {
 		MineBotClient.drive = false;
 		MineBotClient.jump = false;
+		MineBotClient.breaking = false;
 		if (machine == null) {
 			return;
 		}
@@ -106,7 +106,8 @@ public final class MineBotRuntime {
 		input.inventory = inventory(player);
 		input.hasFood = ChestPolicy.foodIn(input.inventory) != null;
 		input.toolId = ActionPerformer.itemId(player.getInventory().getSelectedItem());
-		input.world = new ClientWorld(minecraft, player);
+		input.toolUses = toolUses(player);
+		input.world = new ClientWorld(minecraft);
 		input.inventoryScreenOpen = minecraft.gui.screen() instanceof net.minecraft.client.gui.screens.inventory.InventoryScreen;
 		input.craftingScreenOpen = player.containerMenu instanceof CraftingMenu;
 		input.smithingScreenOpen = player.containerMenu instanceof SmithingMenu;
@@ -219,6 +220,22 @@ public final class MineBotRuntime {
 				|| id.equals("minecraft:barrel");
 	}
 
+	private static Map<String, Integer> toolUses(LocalPlayer player) {
+		Map<String, Integer> uses = new LinkedHashMap<>();
+		for (ItemStack stack : player.getInventory().getNonEquipmentItems()) {
+			if (stack.isEmpty() || !stack.isDamageableItem()) {
+				continue;
+			}
+			String id = ActionPerformer.itemId(stack);
+			if (!com.minebot.core.ToolItems.isTool(id)) {
+				continue;
+			}
+			int left = Math.max(0, stack.getMaxDamage() - stack.getDamageValue());
+			uses.merge(id, left, Math::max);
+		}
+		return uses;
+	}
+
 	private static Map<String, Integer> inventory(LocalPlayer player) {
 		Map<String, Integer> counts = new LinkedHashMap<>();
 		for (ItemStack stack : player.getInventory().getNonEquipmentItems()) {
@@ -232,11 +249,9 @@ public final class MineBotRuntime {
 
 	private static final class ClientWorld implements WorldQuery {
 		private final Minecraft minecraft;
-		private final LocalPlayer player;
 
-		private ClientWorld(Minecraft minecraft, LocalPlayer player) {
+		private ClientWorld(Minecraft minecraft) {
 			this.minecraft = minecraft;
-			this.player = player;
 		}
 
 		@Override
@@ -257,23 +272,12 @@ public final class MineBotRuntime {
 
 		@Override
 		public boolean canHarvest(String toolId, int x, int y, int z) {
-			BlockState state = state(x, y, z);
-			if (player.hasCorrectToolForDrops(state)) {
-				return true;
-			}
-			if (!Ids.isPickaxe(toolId)) {
-				return false;
-			}
-			String id = blockId(x, y, z);
-			if (id.contains("obsidian") || id.contains("ancient_debris") || id.contains("respawn_anchor")) {
-				return toolId.contains("diamond") || toolId.contains("netherite");
-			}
-			return true;
+			return com.minebot.core.ToolRules.canHarvest(toolId, blockId(x, y, z));
 		}
 
 		@Override
 		public float toolSpeed(String toolId, int x, int y, int z) {
-			return com.minebot.core.BreakTimes.speedFor(toolId);
+			return com.minebot.core.ToolRules.speedAgainst(toolId, blockId(x, y, z));
 		}
 
 		private BlockState state(int x, int y, int z) {

@@ -16,6 +16,7 @@ public final class JobProgress {
 	public int breakX;
 	public int breakY;
 	public int breakZ;
+	public String breakItem = "";
 	public int eatTicksLeft;
 	public int sleepCooldown;
 	public boolean placeTorchNext;
@@ -41,6 +42,7 @@ public final class JobProgress {
 		copy.breakX = breakX;
 		copy.breakY = breakY;
 		copy.breakZ = breakZ;
+		copy.breakItem = breakItem;
 		copy.eatTicksLeft = eatTicksLeft;
 		copy.sleepCooldown = sleepCooldown;
 		copy.placeTorchNext = placeTorchNext;

@@ -35,6 +35,8 @@ public final class MineBotClient implements ClientModInitializer {
 
 	public static volatile boolean drive;
 	public static volatile boolean jump;
+	/** True for the rest of a tick that is continuing one block break, so vanilla does not abort it. */
+	public static volatile boolean breaking;
 	static String status = Status.STOPPED;
 
 	@Override

@@ -18,6 +18,8 @@ public final class TickInput {
 	public BlockPos chestPos;
 	public boolean chestOpen;
 	public String toolId = "";
+	/** Remaining uses of each tool id. Missing entries are treated as healthy. */
+	public Map<String, Integer> toolUses = new LinkedHashMap<>();
 	public int bedrockY = -64;
 	public WorldQuery world = WorldQuery.AIR;
 	public boolean inventoryScreenOpen;
@@ -33,7 +35,7 @@ public final class TickInput {
 	}
 
 	public String tool() {
-		if (toolId != null && Ids.isPickaxe(toolId)) {
+		if (toolId != null && ToolItems.isTool(toolId)) {
 			return Ids.normalize(toolId);
 		}
 		String held = ChestPolicy.heldPick(inventory);

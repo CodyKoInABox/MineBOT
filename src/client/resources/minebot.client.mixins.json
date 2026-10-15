@@ -3,7 +3,8 @@
 	"package": "com.minebot.client.mixin",
 	"compatibilityLevel": "JAVA_25",
 	"client": [
-		"KeyboardInputMixin"
+		"KeyboardInputMixin",
+		"BreakAttackMixin"
 	],
 	"injectors": {
 		"defaultRequire": 1

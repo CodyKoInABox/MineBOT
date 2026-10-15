@@ -9,7 +9,7 @@ public interface WorldQuery extends Pathfinder.Collision {
 	boolean solid(int x, int y, int z);
 
 	default boolean canHarvest(String toolId, int x, int y, int z) {
-		return toolId != null && Ids.isPickaxe(toolId);
+		return ToolRules.canHarvest(toolId, blockId(x, y, z));
 	}
 
 	default float toolSpeed(String toolId) {
@@ -17,7 +17,7 @@ public interface WorldQuery extends Pathfinder.Collision {
 	}
 
 	default float toolSpeed(String toolId, int x, int y, int z) {
-		return toolSpeed(toolId);
+		return ToolRules.speedAgainst(toolId, blockId(x, y, z));
 	}
 
 	WorldQuery AIR = new WorldQuery() {

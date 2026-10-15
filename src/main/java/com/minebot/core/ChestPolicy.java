@@ -44,7 +44,7 @@ public final class ChestPolicy {
 
 	public static boolean kept(String itemId, Collection<String> keepIds) {
 		String id = Ids.normalize(itemId);
-		if (Ids.isPickaxe(id)) {
+		if (ToolItems.isTool(id)) {
 			return true;
 		}
 		for (String keep : keepIds) {

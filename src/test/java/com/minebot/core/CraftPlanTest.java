@@ -73,16 +73,24 @@ class CraftPlanTest {
 		holding.put("minecraft:crafting_table", 1);
 		assertTrue(CraftPlan.plan(holding).isEmpty());
 
+		Map<String, Integer> healthy = new LinkedHashMap<>();
+		healthy.put("minecraft:diamond_pickaxe", 1);
+		healthy.put("minecraft:netherite_ingot", 1);
+		healthy.put("minecraft:netherite_upgrade_smithing_template", 1);
+		assertTrue(CraftPlan.plan(healthy).isEmpty());
+
 		Map<String, Integer> upgrade = new LinkedHashMap<>();
-		upgrade.put("minecraft:diamond_pickaxe", 1);
+		upgrade.put("minecraft:diamond", 3);
+		upgrade.put("minecraft:stick", 2);
+		upgrade.put("minecraft:crafting_table", 1);
 		upgrade.put("minecraft:netherite_ingot", 1);
 		upgrade.put("minecraft:netherite_upgrade_smithing_template", 1);
 		List<CraftStep> steps = CraftPlan.plan(upgrade);
-		assertEquals(1, steps.size());
-		assertEquals("minecraft:netherite_pickaxe", steps.get(0).outputId);
-		assertEquals("smithing_table", steps.get(0).station);
+		assertEquals("minecraft:diamond_pickaxe", steps.get(0).outputId);
+		assertEquals("minecraft:netherite_pickaxe", steps.get(steps.size() - 1).outputId);
+		assertEquals("smithing_table", steps.get(steps.size() - 1).station);
 
-		List<CraftClick> clicks = CraftClicks.expand(steps.get(0));
+		List<CraftClick> clicks = CraftClicks.expand(steps.get(steps.size() - 1));
 		assertEquals(CraftClick.Kind.GRID, clicks.get(0).kind);
 		assertEquals("minecraft:netherite_upgrade_smithing_template", clicks.get(0).itemId);
 		assertEquals(CraftClick.Kind.TAKE_RESULT, clicks.get(clicks.size() - 1).kind);
@@ -100,6 +108,35 @@ class CraftPlanTest {
 		assertEquals("minecraft:stick", pick.get(3).itemId);
 		assertEquals(4, pick.get(3).gridIndex);
 		assertEquals(7, pick.get(4).gridIndex);
+	}
+
+	@Test
+	void replacesTheKindThatIsLowOrMissing() {
+		Map<String, Integer> logs = new LinkedHashMap<>();
+		logs.put("minecraft:oak_log", 3);
+		logs.put("minecraft:iron_pickaxe", 1);
+		List<CraftStep> shovel = CraftPlan.plan(logs, ToolKind.SHOVEL, ToolTier.WOOD, Map.of());
+		assertEquals("minecraft:wooden_shovel", shovel.get(shovel.size() - 1).outputId);
+		assertTrue(indexOf(shovel, "minecraft:iron_pickaxe") < 0);
+
+		Map<String, Integer> low = new LinkedHashMap<>();
+		low.put("minecraft:iron_axe", 1);
+		low.put("minecraft:iron_ingot", 3);
+		low.put("minecraft:stick", 2);
+		low.put("minecraft:crafting_table", 1);
+		assertTrue(CraftPlan.plan(low, ToolKind.AXE, ToolTier.WOOD, Map.of("minecraft:iron_axe", 100)).isEmpty());
+		List<CraftStep> replacement = CraftPlan.plan(low, ToolKind.AXE, ToolTier.WOOD, Map.of("minecraft:iron_axe", 4));
+		assertEquals("minecraft:iron_axe", replacement.get(replacement.size() - 1).outputId);
+
+		Map<String, Integer> hoeMats = new LinkedHashMap<>();
+		hoeMats.put("minecraft:diamond", 3);
+		hoeMats.put("minecraft:iron_ingot", 3);
+		hoeMats.put("minecraft:stick", 2);
+		hoeMats.put("minecraft:crafting_table", 1);
+		assertEquals("minecraft:diamond_hoe", CraftPlan.plan(hoeMats, ToolKind.HOE, ToolTier.WOOD, Map.of()).getLast().outputId);
+
+		Map<String, Integer> cannot = Map.of("minecraft:wooden_pickaxe", 1);
+		assertTrue(CraftPlan.plan(cannot, ToolKind.PICKAXE, ToolTier.DIAMOND, Map.of()).isEmpty());
 	}
 
 	private static int indexOf(List<CraftStep> steps, String output) {
