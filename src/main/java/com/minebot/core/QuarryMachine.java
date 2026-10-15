@@ -99,6 +99,9 @@ public final class QuarryMachine {
 			progress.status = Status.NEED_AREA;
 			return BotAction.idle(progress.status);
 		}
+		if (progress.breaking) {
+			return continueBreak(in);
+		}
 
 		if (progress.sleepCooldown > 0) {
 			progress.sleepCooldown--;
@@ -162,13 +165,17 @@ public final class QuarryMachine {
 			}
 			return BotAction.craft(click, progress.status);
 		}
-		PickTier held = PickTier.fromItem(in.tool());
-		List<CraftStep> steps = CraftPlan.plan(in.inventory);
-		if (steps.isEmpty()) {
+		BlockPos next = peekMine(in);
+		if (next == null) {
 			return null;
 		}
-		PickTier target = PickTier.fromItem(steps.get(steps.size() - 1).outputId);
-		if (held != null && target != null && held.ordinal() >= target.ordinal()) {
+		String block = in.world.blockId(next.x, next.y, next.z);
+		ToolKind kind = ToolRules.kindFor(block);
+		if (kind == null) {
+			return null;
+		}
+		List<CraftStep> steps = CraftPlan.plan(in.inventory, kind, ToolRules.minimumTier(block), in.toolUses);
+		if (steps.isEmpty()) {
 			return null;
 		}
 		CraftStep step = steps.get(0);
@@ -264,10 +271,11 @@ public final class QuarryMachine {
 	}
 
 	private BotAction beginBreak(TickInput in, int x, int y, int z) {
-		String tool = in.tool();
+		String block = in.world.blockId(x, y, z);
+		String tool = ToolRules.choose(block, in.inventory, in.toolId);
 		float hardness = in.world.hardness(x, y, z);
-		boolean harvest = in.world.canHarvest(tool, x, y, z);
-		int ticks = BreakTimes.ticks(hardness, in.world.toolSpeed(tool, x, y, z), harvest);
+		boolean harvest = ToolRules.canHarvest(tool, block);
+		int ticks = BreakTimes.ticks(hardness, ToolRules.speedAgainst(tool, block), harvest);
 		if (ticks < 0) {
 			advance();
 			return BotAction.idle(progress.status);
@@ -278,13 +286,14 @@ public final class QuarryMachine {
 		progress.breakX = x;
 		progress.breakY = y;
 		progress.breakZ = z;
+		progress.breakItem = tool == null ? "" : tool;
 		progress.status = Status.RUNNING;
 		Aim aim = Aim.atFeet(in.playerX, in.playerY, in.playerZ, x, y, z);
 		if (ticks == 1) {
 			progress.breaking = false;
 			afterBreak(x, y, z);
 		}
-		return BotAction.breakBlock(x, y, z, aim.yaw, aim.pitch, true, progress.status);
+		return BotAction.breakBlock(x, y, z, aim.yaw, aim.pitch, true, progress.breakItem, progress.status);
 	}
 
 	private BotAction continueBreak(TickInput in) {
@@ -298,7 +307,36 @@ public final class QuarryMachine {
 			progress.breaking = false;
 			afterBreak(x, y, z);
 		}
-		return BotAction.breakBlock(x, y, z, aim.yaw, aim.pitch, false, progress.status);
+		String tool = progress.breakItem == null ? "" : progress.breakItem;
+		return BotAction.breakBlock(x, y, z, aim.yaw, aim.pitch, false, tool, progress.status);
+	}
+
+	private BlockPos peekMine(TickInput in) {
+		int x = progress.x;
+		int y = progress.y;
+		int z = progress.z;
+		int guard = 0;
+		int limit = config.area.sizeX() * config.area.sizeZ() * (surface - floor + 1) + 2;
+		while (guard++ < limit) {
+			if (y < floor) {
+				return null;
+			}
+			if (wantsBreak(in, x, y, z)) {
+				return new BlockPos(x, y, z);
+			}
+			if (x < config.area.maxX()) {
+				x++;
+				continue;
+			}
+			x = config.area.minX();
+			if (z < config.area.maxZ()) {
+				z++;
+				continue;
+			}
+			z = config.area.minZ();
+			y--;
+		}
+		return null;
 	}
 
 	private void afterBreak(int x, int y, int z) {

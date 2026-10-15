@@ -159,7 +159,7 @@ public final class MineBotScreen extends Screen {
 			cfg().survival.placeTorches = !cfg().survival.placeTorches;
 			layout();
 		}));
-		addRenderableWidget(button(flag("Craft picks", cfg().survival.autoCraftPicks), x + 258, n, 110, () -> {
+		addRenderableWidget(button(flag("Craft tools", cfg().survival.autoCraftPicks), x + 258, n, 110, () -> {
 			cfg().survival.autoCraftPicks = !cfg().survival.autoCraftPicks;
 			layout();
 		}));

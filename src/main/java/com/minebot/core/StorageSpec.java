@@ -21,7 +21,7 @@ public final class StorageSpec {
 		spec.keepIds.addAll(Ids.PLANKS);
 		spec.keepIds.add("minecraft:stick");
 		spec.keepIds.addAll(Ids.IRON);
-		spec.keepIds.addAll(Ids.PICKAXES);
+		spec.keepIds.addAll(ToolItems.all());
 		spec.keepIds.add("minecraft:crafting_table");
 		spec.keepIds.add("minecraft:netherite_ingot");
 		spec.keepIds.add("minecraft:netherite_upgrade_smithing_template");

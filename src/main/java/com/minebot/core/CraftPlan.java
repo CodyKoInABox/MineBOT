@@ -6,68 +6,109 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Replacement pick from whatever is actually in the inventory.
- * Logs become planks, planks become sticks and a crafting table, then the pick.
- * Netherite also needs a diamond pick, an ingot, and a netherite upgrade template.
+ * Replacement tool from whatever is actually in the inventory.
+ * Logs become planks, planks become sticks and a crafting table, then the tool.
+ * Netherite also needs the diamond tool of the same kind, an ingot, and an upgrade template.
+ * A healthy tool of the required kind is left alone. A low or missing one is replaced.
  */
 public final class CraftPlan {
 	private CraftPlan() {}
 
 	public static List<CraftStep> plan(Map<String, Integer> items) {
+		return plan(items, ToolKind.PICKAXE, ToolTier.WOOD, Map.of());
+	}
+
+	public static List<CraftStep> plan(
+			Map<String, Integer> items,
+			ToolKind kind,
+			ToolTier minimum,
+			Map<String, Integer> remainingUses
+	) {
+		if (kind == null) {
+			return List.of();
+		}
+		ToolTier floor = minimum == null ? ToolTier.WOOD : minimum;
 		Map<String, Integer> bag = copy(items);
-		PickTier target = bestCraftable(bag);
+		if (hasHealthy(bag, kind, floor, remainingUses)) {
+			return List.of();
+		}
+		ToolTier target = bestCraftable(bag, kind, floor);
 		if (target == null) {
 			return List.of();
 		}
-		PickTier held = bestHeld(bag);
-		if (held != null && held.ordinal() >= target.ordinal()) {
-			return List.of();
-		}
 		List<CraftStep> steps = new ArrayList<>();
-		if (target == PickTier.NETHERITE) {
-			if (count(bag, PickTier.DIAMOND.itemId) <= 0) {
-				craftPick(bag, steps, PickTier.DIAMOND);
+		if (target == ToolTier.NETHERITE) {
+			if (count(bag, ToolItems.diamondOf(kind)) <= 0) {
+				craftTool(bag, steps, kind, ToolTier.DIAMOND);
 			}
-			smithNetherite(bag, steps);
+			smithNetherite(bag, steps, kind);
 			return steps;
 		}
-		craftPick(bag, steps, target);
+		craftTool(bag, steps, kind, target);
 		return steps;
 	}
 
-	private static PickTier bestCraftable(Map<String, Integer> bag) {
-		for (int i = PickTier.values().length - 1; i >= 0; i--) {
-			PickTier tier = PickTier.values()[i];
-			if (canCraft(bag, tier)) {
+	private static boolean hasHealthy(
+			Map<String, Integer> bag,
+			ToolKind kind,
+			ToolTier minimum,
+			Map<String, Integer> remainingUses
+	) {
+		for (Map.Entry<String, Integer> entry : bag.entrySet()) {
+			if (entry.getValue() == null || entry.getValue() <= 0) {
+				continue;
+			}
+			if (ToolItems.kindOf(entry.getKey()) != kind) {
+				continue;
+			}
+			ToolTier tier = ToolItems.tierOf(entry.getKey());
+			if (tier == null || tier.harvestLevel < minimum.harvestLevel) {
+				continue;
+			}
+			if (ToolRules.healthy(entry.getKey(), remainingUses)) {
+				return true;
+			}
+		}
+		return false;
+	}
+
+	private static ToolTier bestCraftable(Map<String, Integer> bag, ToolKind kind, ToolTier minimum) {
+		ToolTier[] tiers = ToolTier.values();
+		for (int i = tiers.length - 1; i >= 0; i--) {
+			ToolTier tier = tiers[i];
+			if (!tier.canCraft() || tier.harvestLevel < minimum.harvestLevel) {
+				continue;
+			}
+			if (canCraft(bag, kind, tier)) {
 				return tier;
 			}
 		}
 		return null;
 	}
 
-	private static boolean canCraft(Map<String, Integer> bag, PickTier tier) {
+	private static boolean canCraft(Map<String, Integer> bag, ToolKind kind, ToolTier tier) {
 		try {
 			Map<String, Integer> copy = copy(bag);
 			List<CraftStep> ignored = new ArrayList<>();
-			if (tier == PickTier.NETHERITE) {
+			if (tier == ToolTier.NETHERITE) {
 				if (count(copy, "minecraft:netherite_ingot") <= 0
 						|| count(copy, "minecraft:netherite_upgrade_smithing_template") <= 0) {
 					return false;
 				}
-				if (count(copy, PickTier.DIAMOND.itemId) <= 0) {
-					craftPick(copy, ignored, PickTier.DIAMOND);
+				if (count(copy, ToolItems.diamondOf(kind)) <= 0) {
+					craftTool(copy, ignored, kind, ToolTier.DIAMOND);
 				}
-				smithNetherite(copy, ignored);
+				smithNetherite(copy, ignored, kind);
 				return true;
 			}
-			craftPick(copy, ignored, tier);
+			craftTool(copy, ignored, kind, tier);
 			return true;
 		} catch (CannotCraft ignored) {
 			return false;
 		}
 	}
 
-	private static void craftPick(Map<String, Integer> bag, List<CraftStep> steps, PickTier tier) {
+	private static void craftTool(Map<String, Integer> bag, List<CraftStep> steps, ToolKind kind, ToolTier tier) {
 		ensureTable(bag, steps);
 		ensureSticks(bag, steps, 2);
 		String material = switch (tier) {
@@ -75,26 +116,29 @@ public final class CraftPlan {
 			case STONE -> takeStone(bag, 3);
 			case IRON -> takeExact(bag, "minecraft:iron_ingot", 3);
 			case DIAMOND -> takeExact(bag, "minecraft:diamond", 3);
-			case NETHERITE -> throw new CannotCraft();
+			case GOLD, NETHERITE -> throw new CannotCraft();
 		};
 		consume(bag, "minecraft:stick", 2);
-		add(bag, tier.itemId, 1);
+		String output = ToolItems.id(kind, tier);
+		add(bag, output, 1);
 		Map<String, Integer> ingredients = new LinkedHashMap<>();
 		ingredients.put(material, 3);
 		ingredients.put("minecraft:stick", 2);
-		steps.add(new CraftStep(tier.itemId, 1, ingredients, "crafting_table"));
+		steps.add(new CraftStep(output, 1, ingredients, "crafting_table"));
 	}
 
-	private static void smithNetherite(Map<String, Integer> bag, List<CraftStep> steps) {
+	private static void smithNetherite(Map<String, Integer> bag, List<CraftStep> steps, ToolKind kind) {
+		String base = ToolItems.diamondOf(kind);
+		String output = ToolItems.id(kind, ToolTier.NETHERITE);
 		takeExact(bag, "minecraft:netherite_upgrade_smithing_template", 1);
-		takeExact(bag, "minecraft:diamond_pickaxe", 1);
+		takeExact(bag, base, 1);
 		takeExact(bag, "minecraft:netherite_ingot", 1);
-		add(bag, PickTier.NETHERITE.itemId, 1);
+		add(bag, output, 1);
 		Map<String, Integer> ingredients = new LinkedHashMap<>();
 		ingredients.put("minecraft:netherite_upgrade_smithing_template", 1);
-		ingredients.put("minecraft:diamond_pickaxe", 1);
+		ingredients.put(base, 1);
 		ingredients.put("minecraft:netherite_ingot", 1);
-		steps.add(new CraftStep(PickTier.NETHERITE.itemId, 1, ingredients, "smithing_table"));
+		steps.add(new CraftStep(output, 1, ingredients, "smithing_table"));
 	}
 
 	private static void ensureTable(Map<String, Integer> bag, List<CraftStep> steps) {
@@ -175,16 +219,6 @@ public final class CraftPlan {
 		}
 		consume(bag, id, count);
 		return id;
-	}
-
-	private static PickTier bestHeld(Map<String, Integer> bag) {
-		PickTier best = null;
-		for (PickTier tier : PickTier.values()) {
-			if (count(bag, tier.itemId) > 0) {
-				best = tier;
-			}
-		}
-		return best;
 	}
 
 	private static int plankCount(Map<String, Integer> bag) {

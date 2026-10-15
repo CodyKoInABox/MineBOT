@@ -11,9 +11,10 @@ public final class CraftClicks {
 	public static List<CraftClick> expand(CraftStep step) {
 		List<CraftClick> clicks = new ArrayList<>();
 		String output = step.outputId;
-		if (output.equals("minecraft:netherite_pickaxe")) {
+		if (output.startsWith("minecraft:netherite_") && ToolItems.isTool(output)) {
+			ToolKind kind = ToolItems.kindOf(output);
 			clicks.add(CraftClick.grid("minecraft:netherite_upgrade_smithing_template", 0));
-			clicks.add(CraftClick.grid("minecraft:diamond_pickaxe", 1));
+			clicks.add(CraftClick.grid(ToolItems.diamondOf(kind), 1));
 			clicks.add(CraftClick.grid("minecraft:netherite_ingot", 2));
 			clicks.add(CraftClick.takeResult());
 			return clicks;
@@ -34,7 +35,7 @@ public final class CraftClicks {
 			clicks.add(CraftClick.takeResult());
 			return clicks;
 		}
-		if (output.endsWith("_pickaxe")) {
+		if (ToolItems.isTool(output)) {
 			String material = materialOf(step);
 			clicks.add(CraftClick.grid(material, 0));
 			clicks.add(CraftClick.grid(material, 1));

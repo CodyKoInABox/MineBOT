@@ -169,6 +169,10 @@ public final class Ids {
 		return normalized.endsWith("_pickaxe") || PICKAXES.contains(normalized);
 	}
 
+	public static boolean isTool(String id) {
+		return ToolItems.isTool(id);
+	}
+
 	public static boolean isLog(String id) {
 		String normalized = normalize(id);
 		return normalized.endsWith("_log")

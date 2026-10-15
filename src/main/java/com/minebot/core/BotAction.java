@@ -62,7 +62,11 @@ public final class BotAction {
 	}
 
 	public static BotAction breakBlock(int x, int y, int z, float yaw, float pitch, boolean start, String status) {
-		return new BotAction(ActionType.BREAK, x, y, z, yaw, pitch, "", status, start, null);
+		return breakBlock(x, y, z, yaw, pitch, start, "", status);
+	}
+
+	public static BotAction breakBlock(int x, int y, int z, float yaw, float pitch, boolean start, String itemId, String status) {
+		return new BotAction(ActionType.BREAK, x, y, z, yaw, pitch, itemId, status, start, null);
 	}
 
 	public static BotAction place(int x, int y, int z, String itemId, String status) {

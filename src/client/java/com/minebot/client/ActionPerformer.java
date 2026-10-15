@@ -13,6 +13,8 @@ import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.network.protocol.game.ServerboundMovePlayerPacket;
+import net.minecraft.network.protocol.game.ServerboundPunchPacket;
 import net.minecraft.network.protocol.game.ServerboundSetCarriedItemPacket;
 import net.minecraft.resources.Identifier;
 import net.minecraft.world.InteractionHand;
@@ -26,9 +28,15 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.Vec3;
 
-/** Turns one core action into one real client interaction. Craft grid clicks are split across ticks. */
+/**
+ * Turns one core action into one real client interaction. Craft grid clicks are split across ticks.
+ * A break stays on one block until vanilla's destroy progress finishes. The attack key is not held,
+ * so the normal tick would abort the break; the client mixin skips that abort while {@code breaking} is set.
+ */
 public final class ActionPerformer {
 	private final Deque<Click> pending = new ArrayDeque<>();
+	/** Set after a block actually finishes, so the next start drains vanilla's 5-tick destroy delay. */
+	private boolean vanillaDelayPending;
 
 	public boolean busy() {
 		return !pending.isEmpty();
@@ -54,17 +62,7 @@ public final class ActionPerformer {
 				MineBotClient.drive = true;
 				MineBotClient.jump = action.type == ActionType.JUMP;
 			}
-			case BREAK -> {
-				look(player, action.yaw, action.pitch);
-				selectBestPick(player);
-				BlockPos pos = new BlockPos(action.x, action.y, action.z);
-				Direction face = faceToward(player, pos);
-				if (action.breakStart) {
-					gameMode.startDestroyBlock(pos, face);
-				} else {
-					gameMode.continueDestroyBlock(pos, face);
-				}
-			}
+			case BREAK -> breakBlock(minecraft, player, gameMode, action);
 			case PLACE -> {
 				selectItem(player, action.itemId);
 				BlockPos support = new BlockPos(action.x, action.y - 1, action.z);
@@ -89,6 +87,44 @@ public final class ActionPerformer {
 				// Status is shown by the HUD. Nothing to click.
 			}
 		}
+	}
+
+	private void breakBlock(Minecraft minecraft, LocalPlayer player, MultiPlayerGameMode gameMode, BotAction action) {
+		if (action.itemId == null || action.itemId.isEmpty()) {
+			selectEmptyHand(player);
+		} else {
+			selectItem(player, action.itemId);
+		}
+		BlockPos pos = new BlockPos(action.x, action.y, action.z);
+		Direction face = faceToward(player, pos);
+		look(player, action.yaw, action.pitch);
+		player.connection.send(new ServerboundMovePlayerPacket.Rot(
+				player.getYRot(),
+				player.getXRot(),
+				player.onGround(),
+				player.horizontalCollision
+		));
+		Vec3 hit = Vec3.atCenterOf(pos).add(face.getStepX() * 0.5, face.getStepY() * 0.5, face.getStepZ() * 0.5);
+		minecraft.hitResult = new BlockHitResult(hit, face, pos, false);
+		MineBotClient.breaking = true;
+		if (action.breakStart) {
+			if (vanillaDelayPending) {
+				for (int i = 0; i < 5; i++) {
+					gameMode.continueDestroyBlock(pos, face);
+				}
+				vanillaDelayPending = false;
+			}
+			gameMode.startDestroyBlock(pos, face);
+			// startDestroyBlock only arms the break. Progress is added by continueDestroyBlock.
+			gameMode.continueDestroyBlock(pos, face);
+		} else {
+			gameMode.continueDestroyBlock(pos, face);
+		}
+		if (!gameMode.isDestroying()) {
+			vanillaDelayPending = true;
+		}
+		player.swing(InteractionHand.MAIN_HAND, player.getMainHandItem().getAttackAnimation(), false);
+		player.connection.send(ServerboundPunchPacket.INSTANCE);
 	}
 
 	private void craft(Minecraft minecraft, LocalPlayer player, CraftClick click) {
@@ -202,23 +238,6 @@ public final class ActionPerformer {
 		player.setYHeadRot(yaw);
 	}
 
-	static void selectBestPick(LocalPlayer player) {
-		String best = null;
-		int bestRank = -1;
-		var items = player.getInventory().getNonEquipmentItems();
-		for (int i = 0; i < items.size(); i++) {
-			String id = itemId(items.get(i));
-			int rank = com.minebot.core.ChestPolicy.pickRank(id);
-			if (rank > bestRank) {
-				bestRank = rank;
-				best = id;
-			}
-		}
-		if (best != null) {
-			selectItem(player, best);
-		}
-	}
-
 	static boolean selectItem(LocalPlayer player, String itemId) {
 		if (itemId == null || itemId.isEmpty()) {
 			return false;
@@ -226,10 +245,16 @@ public final class ActionPerformer {
 		String want = Ids.normalize(itemId);
 		var items = player.getInventory().getNonEquipmentItems();
 		int found = -1;
+		int bestUses = -1;
 		for (int i = 0; i < items.size(); i++) {
-			if (want.equals(itemId(items.get(i)))) {
+			ItemStack stack = items.get(i);
+			if (!want.equals(itemId(stack))) {
+				continue;
+			}
+			int uses = stack.isDamageableItem() ? stack.getMaxDamage() - stack.getDamageValue() : Integer.MAX_VALUE;
+			if (uses > bestUses) {
+				bestUses = uses;
 				found = i;
-				break;
 			}
 		}
 		if (found < 0) {
@@ -263,6 +288,21 @@ public final class ActionPerformer {
 			return 36 + nonEquipmentIndex;
 		}
 		return nonEquipmentIndex;
+	}
+
+	private static void selectEmptyHand(LocalPlayer player) {
+		String selected = itemId(player.getMainHandItem());
+		if (!com.minebot.core.ToolItems.isTool(selected)) {
+			return;
+		}
+		var items = player.getInventory().getNonEquipmentItems();
+		int hotbar = net.minecraft.world.entity.player.Inventory.getSelectionSize();
+		for (int i = 0; i < hotbar && i < items.size(); i++) {
+			if (items.get(i).isEmpty()) {
+				carry(player, i);
+				return;
+			}
+		}
 	}
 
 	private static void carry(LocalPlayer player, int hotbarSlot) {
